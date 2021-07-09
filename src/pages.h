@@ -25,16 +25,14 @@ const char index_page[] PROGMEM = R"=====(
   </head>
   <body>
     <h1>Modbus Bridge for SDM630</h1>
-    <h2>Version: 0.1 </h2>
+    <h2>Version: %BUILD_REVISION% </h2>
     <h2>States</h2>
     <table class="customTable">
       <thead>
         <tr>
-          <th>Register address</th>
-          <th>Register Name</th>
-          <th>Raw HEX</th>
-          <th>Value</th>
-          <th>Unit</th>
+          <th>             </th>
+          <th>             </th>
+          <th>             </th>
         </tr>
       </thead>
       <tbody>
