@@ -20,7 +20,7 @@ uploadfs :
 		pio -f -c vim run --target uploadfs
 
 uploadota :
-		pio -f -c vim run --target upload --upload-port
+		pio -f -c vim run --target upload --upload-port licznik.local
 
 update :
 		pio -f -c vim update
