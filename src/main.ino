@@ -31,7 +31,6 @@
 #include "httpServer.h"
 #include "wifi_config.h"
 
-
 ModbusRTU mb_rtu;
 ModbusIP mb_tcp;
 AsyncWebServer webserver(80);
@@ -40,6 +39,11 @@ SoftwareSerial ModbusSerial(4, 5);
 const char* ssid = SSID;
 const char* password = PSK;
 const char* hostname = HOSTNAME;
+
+char BUILD_REVISION[] = AUTO_VERSION;
+
+//float all_reg_values[300];
+float all_reg_values[std::end(sdm_registers) - std::begin(sdm_registers)];
 
 uint16_t RegInitVal = 0;
 
@@ -53,24 +57,71 @@ String processor(const String& var)
 {
   if(var == "MODBUS_REGISTER_DATA"){
     String data_table = "";
-    uint32_t var_reg = (mb_tcp.Ireg(0x0000) << 16) +  mb_tcp.Ireg(0x0001);
-    float var = *((float*)&var_reg);
+
     data_table += "<tr>";
-    data_table += "<td>0x0000</td>";
-    data_table += "<td>V L1</td>";
-    data_table += "<td>0x" + String(var_reg, HEX) +"</td>";
-    data_table += "<td>" + String(var, 3) + "</td>";
-    data_table += "<td>V</td>";
+    data_table += "<td>Uptime</td>";
+    data_table += "<td>" + getUptimeString() + "</td>";
+    data_table += "<td>d h:m:s</td>";
     data_table += "</tr>";
+
+    auto array_length = std::end(sdm_registers) - std::begin(sdm_registers);
+    for ( int i = 0; i < array_length; i++) {
+      data_table += "<tr>";
+      data_table += "<td>" + String(i) +"</td>";
+      data_table += "<td>" + String(all_reg_values[i]) + "</td>";
+      data_table += "<td>XYZ</td>";
+      data_table += "</tr>";
+    };
+
+//    data_table += "<tr>";
+//    data_table += "<td>V2</td>";
+//    data_table += "<td>" + String(all_reg_values[1]) + "</td>";
+//    data_table += "<td>V</td>";
+//    data_table += "</tr>";
+//
+//    data_table += "<tr>";
+//    data_table += "<td>V3</td>";
+//    data_table += "<td>" + String(all_reg_values[2]) + "</td>";
+//    data_table += "<td>V</td>";
+//    data_table += "</tr>";
+
     return data_table;
+  }
+  if(var == "BUILD_REVISION"){
+
+    return BUILD_REVISION;
   }
   return String();
 }
 
-//        uint32_t var_reg = (var_reg1 << 16) +  var_reg2;
 void otaInit() {
   ArduinoOTA.setHostname(HOSTNAME);
   ArduinoOTA.begin();
+}
+
+String getUptimeString() {
+  uint16_t days;
+  uint8_t hours;
+  uint8_t minutes;
+  uint8_t seconds;
+
+  #define SECS_PER_MIN  60
+  #define SECS_PER_HOUR 3600
+  #define SECS_PER_DAY  86400
+
+  time_t uptime = millis() / 1000;
+
+  seconds = uptime % SECS_PER_MIN;
+  uptime -= seconds;
+  minutes = (uptime % SECS_PER_HOUR) / SECS_PER_MIN;
+  uptime -= minutes * SECS_PER_MIN;
+  hours = (uptime % SECS_PER_DAY) / SECS_PER_HOUR;
+  uptime -= hours * SECS_PER_HOUR;
+  days = uptime / SECS_PER_DAY;
+
+  char buffer[20];
+  sprintf(buffer, "%4u days %02d:%02d:%02d", days, hours, minutes, seconds);
+  return buffer;
 }
 
 void config_webserver(){
@@ -120,14 +171,20 @@ void config_webserver(){
 
 void setup() {
 
+
   // Init serials
   Serial.begin(115200);
   ModbusSerial.begin(9600, SWSERIAL_8N1);
 
   // Init wifi
   WiFi.mode(WIFI_STA);
+  
+  WiFi.config(INADDR_ANY, INADDR_ANY, INADDR_ANY);
+  //WiFi.setHostname(HOSTNAME);
   WiFi.hostname(HOSTNAME);
   WiFi.begin(SSID, PSK);
+
+
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     delay(5000);
     ESP.restart();
@@ -171,6 +228,7 @@ void loop() {
   }
 
   auto array_length = std::end(sdm_registers) - std::begin(sdm_registers);
+
   if (!mb_rtu.slave()) {
 
     switch (array_length - cReg) {
@@ -179,13 +237,14 @@ void loop() {
         break;
 
       default:
-//        Serial.printf_P("(%d) Pull register: 0x%04X (%d) \n", cReg, sdm_registers[cReg], sdm_registers[cReg]);
+        //Serial.printf_P("(%d) Pull register: 0x%04X (%d) \n", cReg, sdm_registers[cReg], sdm_registers[cReg]);
         mb_rtu.pullIreg(1, sdm_registers[cReg], sdm_registers[cReg], 2);
         uint16_t var_reg1 = mb_tcp.Ireg(sdm_registers[cReg]);
         uint16_t var_reg2 = mb_tcp.Ireg(sdm_registers[cReg] + 0x0001);
         uint32_t var_reg = (var_reg1 << 16) +  var_reg2;
         float var = *((float*)&var_reg);
 //        Serial.printf_P("(%d) Pull register: 0x%04X (%d) with value raw: 0x%04X%04X / %d | decoded: %.2f   \n", cReg, sdm_registers[cReg], sdm_registers[cReg],var_reg1, var_reg2, var_reg, var);
+        all_reg_values[cReg] = var;
         cReg++;
     }
 
