@@ -75,18 +75,6 @@ String processor(const String& var)
       data_table += "</tr>";
     };
 
-//    data_table += "<tr>";
-//    data_table += "<td>V2</td>";
-//    data_table += "<td>" + String(all_reg_values[1]) + "</td>";
-//    data_table += "<td>V</td>";
-//    data_table += "</tr>";
-//
-//    data_table += "<tr>";
-//    data_table += "<td>V3</td>";
-//    data_table += "<td>" + String(all_reg_values[2]) + "</td>";
-//    data_table += "<td>V</td>";
-//    data_table += "</tr>";
-
     return data_table;
   }
   if(var == "BUILD_REVISION"){
