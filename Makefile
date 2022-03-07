@@ -25,6 +25,9 @@ uploadfs :
 uploadota :
 		pio -f -c vim run --target upload --upload-port 10.201.1.27
 
+uploadota-luck :
+		pio -f -c vim run --target upload --upload-port 10.202.1.245
+
 update :
 		pio -f -c vim update
 

@@ -38,6 +38,9 @@ ModbusIP mb_tcp;
 AsyncWebServer webserver(80);
 SoftwareSerial ModbusSerial(4, 5);
 
+WiFiEventHandler wifiConnectHandler;
+WiFiEventHandler wifiDisconnectHandler;
+
 const char* ssid = SSID;
 const char* password = PSK;
 const char* hostname = HOSTNAME;
@@ -127,49 +130,91 @@ void config_webserver(){
 
 }
 
-void setup() {
+void handleWiFiConnectivity(){
 
+  if( !WiFi.localIP().isSet() || !WiFi.isConnected() ){
+    WiFi.reconnect();
+  }
+
+}
+
+void onWifiConnect(const WiFiEventStationModeConnected& event) {
+  Serial.println("Connected to Wi-Fi sucessfully.");
+  Serial.print("SSID: ");
+  Serial.println(ssid);
+}
+
+void onWifiGetIp(const WiFiEventStationModeGotIP& event) {
+  Serial.print("Get IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
+  Serial.println("Disconnected from Wi-Fi, trying to connect...");
+  WiFi.disconnect();
+  WiFi.begin(ssid, password);
+}
+
+void setup() {
 
   // Init serials
   Serial.begin(115200);
   ModbusSerial.begin(9600, SWSERIAL_8N1);
 
+  wifiConnectHandler = WiFi.onStationModeConnected(onWifiConnect);
+  wifiConnectHandler = WiFi.onStationModeGotIP(onWifiGetIp);
+  wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
+
   // Init wifi
+  Serial.println("[Setup] Init wifi connection...");
   WiFi.mode(WIFI_STA);
   WiFi.hostname(HOSTNAME);
   WiFi.begin(SSID, PSK);
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    delay(500);
+    Serial.println("[Setup] Connection failed... Restart ESP...");
+    delay(1000);
     ESP.restart();
   }
 
   // Init OTA and webui
+  Serial.print("[Setup] Init OTA configuration... ");
   ArduinoOTA.setHostname(HOSTNAME);
   ArduinoOTA.begin();
+  Serial.println("DONE");
 
   // Init modbus rtu and tcp
+  Serial.print("[Setup] Init modbus configuration... ");
   mb_rtu.begin(&ModbusSerial);
   mb_rtu.master();
   mb_tcp.server(502);
+  Serial.println("DONE");
 
   // Get size of array with register's addresses
   auto array_length = std::end(sdm_registers) - std::begin(sdm_registers);
 
   // Init local input register
+  Serial.print("[Setup] Init modbus registers... ");
   for ( int i = 0; i < array_length; i++) {
     mb_tcp.addIreg(sdm_registers[i], RegInitVal);
     mb_tcp.addIreg(sdm_registers[i] + 0x0001, RegInitVal);
   };
+  Serial.println("DONE");
 
   // Init webserver
+  Serial.print("[Setup] Init webserver... ");
   config_webserver();
   AsyncElegantOTA.begin(&webserver);
   webserver.begin();
+  Serial.println("DONE");
+
+  Serial.println("[Setup] DONE");
 
 }
 
 
 void loop() {
+
+  //handleWiFiConnectivity();
   ArduinoOTA.handle();
 
   auto array_length = std::end(sdm_registers) - std::begin(sdm_registers);
